@@ -20,6 +20,7 @@
 #include "lauxlib.h"
 #include "lualib.h"
 #include "llimits.h"
+#include "lcompat.h"
 
 
 #if !defined(LUA_PROGNAME)
@@ -709,6 +710,10 @@ static int pmain (lua_State *L) {
     lua_setfield(L, LUA_REGISTRYINDEX, "LUA_NOENV");
   }
   luai_openlibs(L);  /* open standard libraries */
+
+  luaL_requiref(L, "compat", luaopen_compat, 1);
+  lua_pop(L, 1);
+
   createargtable(L, argv, argc, script);  /* create table 'arg' */
   lua_gc(L, LUA_GCRESTART);  /* start GC... */
   lua_gc(L, LUA_GCGEN);  /* ...in generational mode */

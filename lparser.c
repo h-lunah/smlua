@@ -1044,7 +1044,6 @@ static void body (LexState *ls, expdesc *e, int ismethod, int line) {
   close_func(ls);
 }
 
-
 static int explist (LexState *ls, expdesc *v) {
   /* explist -> expr { ',' expr } */
   int n = 1;  /* at least one expression */
@@ -1057,6 +1056,82 @@ static int explist (LexState *ls, expdesc *v) {
   return n;
 }
 
+static void cmd_funcargs (LexState *ls, expdesc *f) {
+  FuncState *fs = ls->fs;
+  expdesc args;
+  int base, nparams;
+  int line = ls->linenumber;
+  if (ls->t.token == ')' || ls->t.token == ';')
+      args.k = VVOID;
+  else if (ls->t.token == ',') {
+      luaX_next(ls);
+      explist(ls, &args);
+      luaK_setmultret(fs, &args);
+  }
+  else {
+    luaX_syntaxerror(ls, "')'" " expected");
+    return;
+  }
+  lua_assert(f->k == VNONRELOC);
+  base = f->u.info;
+  if (hasmultret(args.k))
+    nparams = LUA_MULTRET;
+  else {
+    if (args.k != VVOID) {
+      luaK_exp2nextreg(fs, &args);
+    }
+    nparams = fs->freereg - (base+1);
+  }
+  init_exp(f, VCALL, luaK_codeABC(fs, OP_CALL, base, nparams+1, 2));
+  luaK_fixline(fs, line);
+  fs->freereg = cast_byte(base + 1);
+}
+
+static void cmd_body (LexState *ls, expdesc *e) {
+  FuncState *fs = ls->fs;
+
+  while(1) {
+    switch (ls->t.token) {
+      case ')':
+        return;
+      case ';':
+        luaX_next(ls);
+       continue;
+      default: {
+        expdesc key;
+        init_exp(e, VLOCAL, 0);
+        codename(ls, &key);
+        luaK_self(fs, e, &key);
+        cmd_funcargs(ls, e);
+        if (e->k == VCALL)
+          SETARG_C(fs->f->code[e->u.info], 1);
+      }
+    }
+  }
+}
+
+static void cmd(LexState *ls, expdesc *e, int line) {
+  FuncState new_fs;
+  BlockCnt bl;
+  new_fs.f = addprototype(ls);
+  new_fs.f->linedefined = line;
+
+  open_func(ls, &new_fs, &bl);
+  checknext(ls, '(');
+
+  new_localvarliteral(ls, "self");
+  adjustlocalvars(ls, 1);
+
+  new_fs.f->numparams = cast_byte(new_fs.nactvar);
+  luaK_reserveregs(&new_fs, new_fs.nactvar);
+
+  cmd_body(ls, e);
+
+  new_fs.f->lastlinedefined = ls->linenumber;
+  check_match(ls, ')', TK_CMD, line);
+  codeclosure(ls, e);
+  close_func(ls);
+}
 
 static void funcargs (LexState *ls, expdesc *f) {
   FuncState *fs = ls->fs;
@@ -1218,6 +1293,11 @@ static void simpleexp (LexState *ls, expdesc *v) {
     case TK_FUNCTION: {
       luaX_next(ls);
       body(ls, v, 0, ls->linenumber);
+      return;
+    }
+    case TK_CMD: {
+      luaX_next(ls);
+      cmd(ls, v, ls->linenumber);
       return;
     }
     default: {

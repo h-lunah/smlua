@@ -35,6 +35,7 @@ typedef struct {
   lua_State *L;
   ZIO *Z;
   const char *name;
+  int flip;
   Table *h;  /* list for string reuse */
   size_t offset;  /* current position relative to beginning of dump */
   lua_Integer nstr;  /* number of strings in the list */

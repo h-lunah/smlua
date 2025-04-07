@@ -68,6 +68,13 @@ static int findfield (lua_State *L, int objidx, int level) {
 }
 
 
+LUALIB_API int luaL_pushtype (lua_State *L, int narg) {
+  if (!luaL_callmeta(L, narg, "__type"))
+       lua_pushstring(L, luaL_typename(L, narg));
+  return 1;
+}
+
+
 /*
 ** Search for a name for a function in all loaded modules
 */
@@ -197,12 +204,13 @@ LUALIB_API int luaL_argerror (lua_State *L, int arg, const char *extramsg) {
 LUALIB_API int luaL_typeerror (lua_State *L, int arg, const char *tname) {
   const char *msg;
   const char *typearg;  /* name for the type of the actual argument */
+  luaL_pushtype(L, arg);
   if (luaL_getmetafield(L, arg, "__name") == LUA_TSTRING)
     typearg = lua_tostring(L, -1);  /* use the given type name */
   else if (lua_type(L, arg) == LUA_TLIGHTUSERDATA)
     typearg = "light userdata";  /* special name for messages */
   else
-    typearg = luaL_typename(L, arg);  /* standard name */
+    typearg = lua_tostring(L, arg);  /* standard name */
   msg = lua_pushfstring(L, "%s expected, got %s", tname, typearg);
   return luaL_argerror(L, arg, msg);
 }
