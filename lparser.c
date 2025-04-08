@@ -1066,7 +1066,8 @@ static void cmd_funcargs (LexState *ls, expdesc *f) {
   else if (ls->t.token == ',') {
       luaX_next(ls);
       explist(ls, &args);
-      luaK_setmultret(fs, &args);
+      if (hasmultret(args.k))
+        luaK_setmultret(fs, &args);
   }
   else {
     luaX_syntaxerror(ls, "')'" " expected");
