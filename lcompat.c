@@ -446,8 +446,11 @@ void lcompat_setglobal(lua_State *L, const char *name) {
     lua_pop(L, 2);
 }
 
-void lcompat_getglobal(lua_State *L, const char *name) {
+int lcompat_getglobal(lua_State *L, const char *name) {
+    int type;
     lua_pushglobaltable(L);
     lua_getfield(L, -1, name);
+    type = lua_type(L, -1);
     lua_remove(L, -2);
+    return type;
 }

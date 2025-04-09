@@ -148,7 +148,7 @@ LUA_API int lcompat_setfenv(lua_State *L, int idx);
 LUA_API int lcompat_cpcall(lua_State *L, lua_CFunction func, void *ud);
 LUA_API void lcompat_pushvalue_at_globalsindex(lua_State *L);
 LUA_API void lcompat_setglobal(lua_State *L, const char *name);
-LUA_API void lcompat_getglobal(lua_State *L, const char *name);
+LUA_API int lcompat_getglobal(lua_State *L, const char *name);
 LUA_API void lcompat_pushglobals(lua_State *L);
 
 /* Main initialization */
