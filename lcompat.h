@@ -107,6 +107,9 @@ static inline void lua_setfield_wrapper(lua_State *L, int idx, const char *k) {
 #define lua_number2int(i,d)     ((i) = (int)(d))
 #define lua_number2integer(i,d) ((i) = (lua_Integer)(d))
 
+#define lua_tonumber(L,i) \
+  (lua_isinteger(L,(i)) ? (lua_Number)lua_tointeger(L,(i)) : lua_tonumberx(L,(i),NULL))
+
 /*==============================================================================
   Error handling
 ==============================================================================*/
