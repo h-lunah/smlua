@@ -7,6 +7,8 @@
 #ifndef LCOMPAT_H
 #define LCOMPAT_H
 
+#include <math.h>
+
 #include "lua.h"
 #include "lauxlib.h"
 
@@ -99,17 +101,23 @@ static inline void lua_setfield_wrapper(lua_State *L, int idx, const char *k) {
   Integer compatibility
 ==============================================================================*/
 
-#define luaL_checkint(L,n)   ((int)luaL_checkinteger(L, (n)))
-#define luaL_optint(L,n,d)   ((int)luaL_optinteger(L, (n), (d)))
-#define luaL_checklong(L,n)  ((long)luaL_checkinteger(L, (n)))
-#define luaL_optlong(L,n,d)  ((long)luaL_optinteger(L, (n), (d)))
+
+#define luaL_checkint(L,n)   ((int)luaL_checknumber(L, (n)))
+#define luaL_optint(L,n,d)   ((int)luaL_optnumber(L, (n), (d)))
+#define luaL_checklong(L,n)  ((long)luaL_checknumber(L, (n)))
+#define luaL_optlong(L,n,d)  ((long)luaL_optnumber(L, (n), (d)))
 
 #define lua_number2int(i,d)   ((i) = (int)(d))
 #define lua_number2integer(i,d) ((i) = (lua_Integer)(d))
 
-#undef lua_tonumber
-#define lua_tonumber(L,i) \
-  (lua_isinteger(L,(i)) ? (lua_Number)lua_tointeger(L,(i)) : lua_tonumberx(L,(i),NULL))
+inline void lcompat_pushnumber(lua_State *L, lua_Number num) {
+  if (floor(num) == num && num >= LUA_MININTEGER && num <= LUA_MAXINTEGER)
+    lua_pushinteger(L, (lua_Integer)num);
+  else
+    lua_pushnumber(L, num);
+}
+
+#define lua_pushnumber(L,n) lcompat_pushnumber(L,n)
 
 /*==============================================================================
   Error handling
@@ -117,7 +125,7 @@ static inline void lua_setfield_wrapper(lua_State *L, int idx, const char *k) {
 
 #define luaL_typerror(L,n,t) \
   luaL_error(L, "bad argument #%d (%s expected, got %s)", \
-         (n), (t), luaL_typename(L, (n)))
+    (n), (t), luaL_typename(L, (n)))
 
 /*==============================================================================
   Table length (Lua 5.1 compatibility)
@@ -141,7 +149,7 @@ static inline void lua_setfield_wrapper(lua_State *L, int idx, const char *k) {
 
 #define luaL_openlib(L, n, l, nu) \
   ((n) ? (luaL_newlib(L, l), lua_pushvalue(L, -1), lua_setglobal(L, n)) : \
-       (luaL_setfuncs(L, l, nu)))
+    (luaL_setfuncs(L, l, nu)))
 
 /*==============================================================================
   Compatibility API declarations
