@@ -374,7 +374,7 @@ LUA_API unsigned (lua_numbertocstring) (lua_State *L, int idx, char *buff) {
     lua_Number n = nvalue(o);
     lua_Number intpart;
     if (modf(n, &intpart) == 0.0) {
-      unsigned len = l_sprintf(buff, 32, LUA_INTEGER_FMT, (lua_Integer)n);
+      unsigned len = (unsigned)l_sprintf(buff, 32, LUA_INTEGER_FMT, (lua_Integer)n);
       buff[len++] = '\0';
       return len;
     } else {
