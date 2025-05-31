@@ -1,6 +1,12 @@
 -- $Id: testes/goto.lua $
 -- See Copyright Notice in file lua.h
 
+global<const> require
+global<const> print, load, assert, string, setmetatable
+global<const> collectgarbage, error
+
+print("testing goto and global declarations")
+
 collectgarbage()
 
 local function errmsg (code, m)
@@ -17,15 +23,18 @@ errmsg([[ ::l1:: ::l1:: ]], "label 'l1'")
 errmsg([[ ::l1:: do ::l1:: end]], "label 'l1'")
 
 
--- undefined label
-errmsg([[ goto l1; local aa ::l1:: ::l2:: print(3) ]], "local 'aa'")
 
--- jumping over variable definition
+-- jumping over variable declaration
+errmsg([[ goto l1; local aa ::l1:: ::l2:: print(3) ]], "scope of 'aa'")
+
+errmsg([[ goto l2; global *; ::l1:: ::l2:: print(3) ]], "scope of '*'")
+
 errmsg([[
 do local bb, cc; goto l1; end
 local aa
 ::l1:: print(3)
-]], "local 'aa'")
+]], "scope of 'aa'")
+
 
 -- jumping into a block
 errmsg([[ do ::l1:: end goto l1 ]], "label 'l1'")
@@ -38,7 +47,7 @@ errmsg([[
     local xuxu = 10
     ::cont::
   until xuxu < x
-]], "local 'xuxu'")
+]], "scope of 'xuxu'")
 
 -- simple gotos
 local x
@@ -252,6 +261,8 @@ assert(testG(5) == 10)
 
 do   -- test goto's around to-be-closed variable
 
+  global *
+
   -- set 'var' and return an object that will reset 'var' when
   -- it goes out of scope
   local function newobj (var)
@@ -263,16 +274,16 @@ do   -- test goto's around to-be-closed variable
 
   goto L1
 
-  ::L4:: assert(not X); goto L5   -- varX dead here
+  ::L4:: assert(not varX); goto L5   -- varX dead here
 
   ::L1::
   local varX <close> = newobj("X")
-  assert(X); goto L2   -- varX alive here
+  assert(varX); goto L2   -- varX alive here
 
   ::L3::
-  assert(X); goto L4   -- varX alive here
+  assert(varX); goto L4   -- varX alive here
 
-  ::L2:: assert(X); goto L3  -- varX alive here
+  ::L2:: assert(varX); goto L3  -- varX alive here
 
   ::L5::   -- return
 end
@@ -280,7 +291,97 @@ end
 
 
 foo()
---------------------------------------------------------------------------------
+--------------------------------------------------------------------------
 
+do
+  global T<const>
+
+  local function checkerr (code, err)
+    local st, msg = load(code)
+    assert(not st and string.find(msg, err))
+  end
+
+  -- globals must be declared, after a global declaration
+  checkerr("global none; X = 1", "variable 'X'")
+  checkerr("global none; function XX() end", "variable 'XX'")
+
+  -- global variables cannot be to-be-closed
+  checkerr("global X<close>", "cannot be")
+  checkerr("global <close> *", "cannot be")
+
+  do
+    local X = 10
+    do global X; X = 20 end
+    assert(X == 10)   -- local X
+  end
+  assert(_ENV.X == 20)  -- global X
+
+  -- '_ENV' cannot be global
+  checkerr("global _ENV, a; a = 10", "variable 'a'")
+
+  -- global declarations inside functions
+  checkerr([[
+    global none
+    local function foo () XXX = 1 end   --< ERROR]], "variable 'XXX'")
+
+  if not T then  -- when not in "test mode", "global" isn't reserved
+    assert(load("global = 1; return global")() == 1)
+    print "  ('global' is not a reserved word)"
+  else
+    -- "global" reserved, cannot be used as a variable
+    assert(not load("global = 1; return global"))
+  end
+
+  local foo = 20
+  do
+    global function foo (x)
+      if x == 0 then return 1 else return 2 * foo(x - 1) end
+    end
+    assert(foo == _ENV.foo and foo(4) == 16)
+  end
+  assert(_ENV.foo(4) == 16)
+  assert(foo == 20)   -- local one is in context here
+
+  do
+    global foo;
+    function foo (x) return end   -- Ok after declaration
+  end
+
+  checkerr([[
+    global<const> foo;
+    function foo (x) return end   -- ERROR: foo is read-only
+  ]], "assign to const variable 'foo'")
+
+  checkerr([[
+    global foo <const>;
+    function foo (x)    -- ERROR: foo is read-only
+      return
+    end
+  ]], "%:2%:")   -- correct line in error message
+
+  checkerr([[
+    global<const> *;
+    print(X)    -- Ok to use
+    Y = 1   -- ERROR
+  ]], "assign to const variable 'Y'")
+
+  checkerr([[
+    global *;
+    Y = X    -- Ok to use
+    global<const> *;
+    Y = 1   -- ERROR
+  ]], "assign to const variable 'Y'")
+
+  global *
+  Y = 10
+  assert(_ENV.Y == 10)
+  global<const> *
+  local x = Y
+  global *
+  Y = x + Y
+  assert(_ENV.Y == 20)
+
+end
 
 print'OK'
+
