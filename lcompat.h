@@ -92,7 +92,9 @@ static inline void lua_setfield_wrapper(lua_State *L, int idx, const char *k) {
 #define lua_newtable(L)    lua_createtable(L, 0, 0)
 #define lua_strlen(L,i)    lua_rawlen(L, (i))
 #define lua_objlen(L,i)    lua_rawlen(L, (i))
+#undef lua_equal
 #define lua_equal(L,a,b)   lua_compare(L, (a), (b), LUA_OPEQ)
+#undef lua_lessthan
 #define lua_lessthan(L,a,b)  lua_compare(L, (a), (b), LUA_OPLT)
 #define lua_require(L, name, func) \
   (luaL_requiref(L, (name), (func), 1), lua_pop(L, 1))
