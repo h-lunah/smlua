@@ -522,8 +522,12 @@ struct lua_Debug {
 #define LUA_VERSION_RELEASE	LUAI_TOSTR(LUA_VERSION_RELEASE_N)
 
 #define LUA_VERSION	"Lua " LUA_VERSION_MAJOR "." LUA_VERSION_MINOR
-#define LUA_RELEASE	LUA_VERSION "." LUA_VERSION_RELEASE "-" LUA_VERSION_APPEND_STR
 
+#ifdef LUA_VERSION_APPEND_STR
+#define LUA_RELEASE	LUA_VERSION "." LUA_VERSION_RELEASE "-" LUA_VERSION_APPEND_STR
+#else
+#define LUA_RELEASE LUA_VERSION "." LUA_VERSION_RELEASE
+#endif
 
 
 /******************************************************************************
