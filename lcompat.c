@@ -492,9 +492,17 @@ LUAMOD_API int luaopen_compat(lua_State *L) {
   lua_setglobal(L, "tonumber");
 
   /* Register in package.loaded
-   * 'package' must be loaded for this to not return nil and crash. */
+   * 'package' must be loaded or you will receive errors. */
   lua_getglobal(L, "package");
+  if (lua_isnil(L, -1)) {
+    lua_pop(L, 1);
+    return luaL_error(L, "cannot load compatibility module: 'package' is not available");
+  }
   lua_getfield(L, -1, "loaded");
+  if (lua_isnil(L, -1) || !lua_istable(L, -1)) {
+    lua_pop(L, 2);
+    return luaL_error(L, "cannot load compatibility module: 'package.loaded' not correctly loaded");
+  }
   lua_pushvalue(L, -3);
   lua_setfield(L, -2, "compat");
   lua_pop(L, 2);
