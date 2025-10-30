@@ -166,6 +166,6 @@ LUA_API int lcompat_getglobal(lua_State *L, const char *name);
 LUA_API void lcompat_pushglobals(lua_State *L);
 
 /* Main initialization */
-LUA_API int luaopen_compat(lua_State *L);
+LUAMOD_API int luaopen_compat(lua_State *L);
 
 #endif /* LCOMPAT_H */
