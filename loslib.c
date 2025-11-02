@@ -15,6 +15,15 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#ifdef _WIN32
+  #include <winsock2.h>
+  #include <ws2tcpip.h>
+#else
+  #include <sys/types.h>
+  #include <sys/socket.h>
+  #include <netdb.h>
+#endif
+
 
 #include "lua.h"
 
@@ -392,6 +401,39 @@ static int os_setlocale (lua_State *L) {
   return 1;
 }
 
+static int os_testnet (lua_State *L) {
+  struct addrinfo hints, *res;
+  int status;
+
+  #ifdef _WIN32
+    static int wsa_initialized = 0;
+    if (!wsa_initialized) {
+      WSADATA wsaData;
+      if (WSAStartup(MAKEWORD(2,2), &wsaData) != 0) {
+        lua_pushnil(L);
+        return 1;
+      }
+      wsa_initialized = 1;
+    }
+  #endif
+
+  memset(&hints, 0, sizeof hints);
+  hints.ai_family = AF_UNSPEC;
+  hints.ai_socktype = SOCK_STREAM;
+
+  status = getaddrinfo("1.1.1.1", "80", &hints, &res);
+  if (status == EAI_NONAME || status == EAI_SERVICE) {
+    lua_pushboolean(L, 0);
+    return 1;
+  } else if (status == EAI_FAIL || status != 0) {
+    lua_pushnil(L);
+    return 1;
+  } else {
+    freeaddrinfo(res);
+    lua_pushboolean(L, 1);
+    return 1;
+  }
+}
 
 static int os_exit (lua_State *L) {
   int status;
@@ -416,6 +458,7 @@ static const luaL_Reg syslib[] = {
   {"remove",    os_remove},
   {"rename",    os_rename},
   {"setlocale", os_setlocale},
+  {"testnet",   os_testnet},
   {"time",      os_time},
   {"tmpname",   os_tmpname},
   {NULL, NULL}
