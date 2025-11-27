@@ -12,6 +12,10 @@
 #include "lua.h"
 #include "lauxlib.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*==============================================================================
   Pseudo-indices (Lua 5.1 compatibility)
 ==============================================================================*/
@@ -167,5 +171,9 @@ LUA_API void lcompat_pushglobals(lua_State *L);
 
 /* Main initialization */
 LUAMOD_API int luaopen_compat(lua_State *L);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* LCOMPAT_H */
