@@ -27,15 +27,54 @@ extern "C" {
   Global table access wrappers
 ==============================================================================*/
 
-/* Macro version for lua_settable */
-#define lua_settable(L, idx) \
-  ((idx) == LUA_GLOBALSINDEX ? (lua_pushglobaltable(L), lua_insert(L, -3), \
-    lua_settable(L, -3), lua_remove(L, -1)) : lua_settable(L, (idx)))
+#define lua_settable_original lua_settable
+#define lua_gettable_original lua_gettable
+#define lua_rawset_original   lua_rawset
+#define lua_rawget_original   lua_rawget
 
-/* Macro version for lua_gettable */
-#define lua_gettable(L, idx) \
-  ((idx) == LUA_GLOBALSINDEX ? (lua_pushglobaltable(L), lua_gettable(L, -1)) \
-    : lua_gettable(L, (idx)))
+static inline void lua_settable_wrapper(lua_State *L, int idx) {
+  if (idx == LUA_GLOBALSINDEX) {
+    lua_pushglobaltable(L);
+    lua_insert(L, -3);
+    lua_settable_original(L, -3);
+    lua_pop(L, 1);
+  } else {
+    lua_settable_original(L, idx);
+  }
+}
+
+static inline void lua_gettable_wrapper(lua_State *L, int idx) {
+  if (idx == LUA_GLOBALSINDEX) {
+    lua_pushglobaltable(L);
+    lua_insert(L, -2);
+    lua_gettable_original(L, -2);
+    lua_remove(L, -2);
+  } else {
+    lua_gettable_original(L, idx);
+  }
+}
+
+static inline void lua_rawset_wrapper(lua_State *L, int idx) {
+  if (idx == LUA_GLOBALSINDEX) {
+    lua_pushglobaltable(L);
+    lua_insert(L, -3);
+    lua_rawset_original(L, -3);
+    lua_pop(L, 1);
+  } else {
+    lua_rawset_original(L, idx);
+  }
+}
+
+static inline void lua_rawget_wrapper(lua_State *L, int idx) {
+  if (idx == LUA_GLOBALSINDEX) {
+    lua_pushglobaltable(L);
+    lua_insert(L, -2);
+    lua_rawget_original(L, -2);
+    lua_remove(L, -2);
+  } else {
+    lua_rawget_original(L, idx);
+  }
+}
 
 /* Save original functions */
 #define lua_getfield_original lua_getfield
@@ -56,9 +95,9 @@ static inline void lua_getfield_wrapper(lua_State *L, int idx, const char *k) {
 static inline void lua_setfield_wrapper(lua_State *L, int idx, const char *k) {
   if (idx == LUA_GLOBALSINDEX) {
     lua_pushglobaltable(L);
-    lua_pushvalue(L, -2);  /* duplicate value */
+    lua_insert(L, -2);
     lua_setfield_original(L, -2, k);
-    lua_pop(L, 2);  /* pop global table and value */
+    lua_pop(L, 1);
   } else {
     lua_setfield_original(L, idx, k);
   }
@@ -116,7 +155,7 @@ static inline void lua_setfield_wrapper(lua_State *L, int idx, const char *k) {
 #define lua_number2int(i,d)   ((i) = (int)(d))
 #define lua_number2integer(i,d) ((i) = (lua_Integer)(d))
 
-inline void lcompat_pushnumber(lua_State *L, lua_Number num) {
+static inline void lcompat_pushnumber(lua_State *L, lua_Number num) {
   if (floor(num) == num && num >= LUA_MININTEGER && num <= LUA_MAXINTEGER)
     lua_pushinteger(L, (lua_Integer)num);
   else

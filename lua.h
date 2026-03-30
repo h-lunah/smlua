@@ -12,7 +12,7 @@
 #include <stdarg.h>
 #include <stddef.h>
 
-#define LUA_COPYRIGHT	LUA_RELEASE "  Copyright (C) 1994-2025 Lua.org, PUC-Rio, StepMania Team"
+#define LUA_COPYRIGHT	LUA_RELEASE "  Copyright (C) 1994-2026 Lua.org, PUC-Rio, StepMania Team"
 #define LUA_AUTHORS	"R. Ierusalimschy, L. H. de Figueiredo, W. Celes"
 
 /* SMLua features */
@@ -23,7 +23,7 @@
 
 #define LUA_VERSION_MAJOR_N	5
 #define LUA_VERSION_MINOR_N	5
-#define LUA_VERSION_RELEASE_N	0
+#define LUA_VERSION_RELEASE_N	1
 #define LUA_VERSION_APPEND_STR "SM"
 
 #define LUA_VERSION_NUM  (LUA_VERSION_MAJOR_N * 100 + LUA_VERSION_MINOR_N)
@@ -531,7 +531,7 @@ struct lua_Debug {
 
 
 /******************************************************************************
-* Copyright (C) 1994-2025 Lua.org, PUC-Rio.
+* Copyright (C) 1994-2026 Lua.org, PUC-Rio.
 *
 * Permission is hereby granted, free of charge, to any person obtaining
 * a copy of this software and associated documentation files (the

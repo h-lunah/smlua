@@ -80,6 +80,7 @@ static int math_ldexp(lua_State *L) {
 static int math_mod(lua_State *L) {
   lua_getglobal(L, "math");
   lua_getfield(L, -1, "fmod");
+  lua_remove(L, -2);
   lua_pushvalue(L, 1);
   lua_pushvalue(L, 2);
   lua_call(L, 2, 1);
@@ -163,15 +164,17 @@ static int string_gfind(lua_State *L) {
 /* ==================== Global Function Compatibility ==================== */
 
 static int global_unpack(lua_State *L) {
+  int base = lua_gettop(L);
   lua_getglobal(L, "table");
   lua_getfield(L, -1, "unpack");
   lua_remove(L, -2);
   lua_insert(L, 1);
   lua_call(L, lua_gettop(L) - 1, LUA_MULTRET);
-  return lua_gettop(L);
+  return lua_gettop(L) - base;
 }
 
 static int compat_loadstring(lua_State *L) {
+  int base = lua_gettop(L);
   size_t l;
   const char *s = luaL_checklstring(L, 1, &l);
   const char *chunkname = luaL_optstring(L, 2, s);
@@ -181,7 +184,7 @@ static int compat_loadstring(lua_State *L) {
   lua_pushstring(L, chunkname);
   lua_call(L, 2, LUA_MULTRET);
 
-  return lua_gettop(L) - 2;
+  return lua_gettop(L) - base;
 }
 
 static int compat_tonumber(lua_State *L) {
@@ -250,7 +253,9 @@ static int compat_tonumber(lua_State *L) {
         return 1;
       } else {
         char *temp = (char *)malloc(len + 1);
+        char *endp;
         lua_Integer val;
+
         if (!temp) {
           lua_pushnil(L);
           return 1;
@@ -259,20 +264,22 @@ static int compat_tonumber(lua_State *L) {
         memcpy(temp, s, len);
         temp[len] = '\0';
 
-        val = (lua_Integer)strtol(temp, &end, base);
+        val = (lua_Integer)strtol(temp, &endp, base);
+
+        if (endp == temp) {
+          free(temp);
+          lua_pushnil(L);
+          return 1;
+        }
+
+        while (isspace((unsigned char)*endp)) endp++;
+        if (*endp != '\0') {
+          free(temp);
+          lua_pushnil(L);
+          return 1;
+        }
+
         free(temp);
-
-        if (end == temp) {
-          lua_pushnil(L);
-          return 1;
-        }
-
-        while (isspace((unsigned char)*end)) end++;
-        if (*end != '\0') {
-          lua_pushnil(L);
-          return 1;
-        }
-
         lua_pushnumber(L, (lua_Number)val);
         return 1;
       }
@@ -289,6 +296,7 @@ static int compat_tonumber(lua_State *L) {
 static int compat_module(lua_State *L) {
   const char *modname = luaL_checkstring(L, 1);
   int loaded = 0;
+  int modidx;
 
   /* Check if module already exists */
   lua_getglobal(L, "package");
@@ -327,18 +335,19 @@ static int compat_module(lua_State *L) {
   }
 
   /* Set environment for functions */
+  modidx = lua_absindex(L, -1);
+
   if (lua_gettop(L) > 2) {
-    int i;
-    for (i = 2; i <= lua_gettop(L); i++) {
-      if (lua_isfunction(L, i)) {
-        const char *name = lua_getupvalue(L, i, 1);
-        int nups = (name != NULL);
-        if (nups == 1 && lua_isnil(L, -1)) {
+    int top = lua_gettop(L);
+    for (int i = 2; i <= top; i++) {
+      if (lua_isfunction(L, i) && !lua_iscfunction(L, i)) {
+        const char *upname = lua_getupvalue(L, i, 1);
+        if (upname && strcmp(upname, "_ENV") == 0) {
           lua_pop(L, 1);
-          lua_pushvalue(L, -1);
+          lua_pushvalue(L, modidx);
           lua_setupvalue(L, i, 1);
-        } else {
-          lua_pop(L, nups);
+        } else if (upname) {
+          lua_pop(L, 1);
         }
       }
     }
@@ -438,6 +447,51 @@ static int compat_getfenv(lua_State *L) {
   }
 
   return 1;
+}
+
+int lcompat_getfenv(lua_State *L, int idx) {
+  if (idx == LUA_GLOBALSINDEX || idx == LUA_ENVIRONINDEX) {
+    lua_pushglobaltable(L);
+    return 1;
+  }
+
+  idx = lua_absindex(L, idx);
+
+  if (lua_isfunction(L, idx) && !lua_iscfunction(L, idx)) {
+    const char *name = lua_getupvalue(L, idx, 1); /* pushes value if exists */
+    if (name && strcmp(name, "_ENV") == 0) return 1;
+    if (name) lua_pop(L, 1);
+  }
+
+  lua_pushglobaltable(L);
+  return 1;
+}
+
+int lcompat_setfenv(lua_State *L, int idx) {
+  luaL_checktype(L, -1, LUA_TTABLE);
+
+  if (idx == LUA_GLOBALSINDEX || idx == LUA_ENVIRONINDEX) {
+    return luaL_error(L, "cannot set environment of globals directly");
+  }
+
+  idx = lua_absindex(L, idx);
+
+  if (lua_isfunction(L, idx) && !lua_iscfunction(L, idx)) {
+    lua_pushvalue(L, -1);                 /* duplicate env */
+    if (lua_setupvalue(L, idx, 1) == NULL) {
+      lua_pop(L, 1);
+      return luaL_error(L, "unable to set environment");
+    }
+    return 1;
+  }
+
+  return luaL_error(L, "setfenv only supported for Lua functions");
+}
+
+int lcompat_cpcall(lua_State *L, lua_CFunction func, void *ud) {
+  lua_pushcfunction(L, func);
+  lua_pushlightuserdata(L, ud);
+  return lua_pcall(L, 1, 0, 0);
 }
 
 /* ==================== Module Registration ==================== */
@@ -561,9 +615,9 @@ void lcompat_pushglobals(lua_State *L) {
 
 void lcompat_setglobal(lua_State *L, const char *name) {
   lua_pushglobaltable(L);
-  lua_pushvalue(L, -2);
+  lua_insert(L, -2);
   lua_setfield(L, -2, name);
-  lua_pop(L, 2);
+  lua_pop(L, 1);
 }
 
 int lcompat_getglobal(lua_State *L, const char *name) {
