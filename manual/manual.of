@@ -2692,9 +2692,9 @@ which behaves like a nil value.
 
 @sect3{constchar|@title{Pointers to Strings}
 
-Several functions in the API accept pointers (@T{const char*})
-to C strings.
-Some of there parameters have an associated length (@T{size_t}).
+Several functions in the API have parameters
+that are pointers to C strings (@T{const char*}).
+Some of these parameters have an associated length (@T{size_t}).
 Unless stated otherwise,
 when there is an associated length,
 the string can contain embedded zeros;
@@ -9623,9 +9623,6 @@ makes @id{global} a regular word.
 The control variable in @Rw{for} loops is read only.
 If you need to change it,
 declare a local variable with the same name in the loop body.
-
-The compilation option @id{LUA_COMPAT_LOOPVAR} (see @id{luaconf.h})
-makes these variables regular (writable).
 }
 
 @item{
