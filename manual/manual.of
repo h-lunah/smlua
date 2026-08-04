@@ -1728,7 +1728,7 @@ global X <const>, _G
 X = 1           -- ERROR
 _ENV.X = 1      -- Ok
 _G.print(X)     -- Ok
-foo()         -- 'foo' can freely change any global
+foo()           -- 'foo' can freely change any global
 }
 
 A chunk is also a block @see{chunks},
@@ -6070,6 +6070,14 @@ and returns 1.
 In both cases,
 the function pushes onto the stack the final value associated
 with @id{tname} in the registry.
+
+Usage note: Beware the use of the return value of this function to
+conditionally initializes the new metatable
+(e.g., by adding metamethods to it).
+If the initialization raises an error,
+the metatable will not be properly initialized,
+but a subsequent execution of that code will detect that the
+metatable already exists and then skip the initialization.
 
 }
 
